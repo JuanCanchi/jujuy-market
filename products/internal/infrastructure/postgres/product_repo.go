@@ -3,26 +3,36 @@ package postgres
 import (
 	"context"
 	"github.com/juancanchi/jujuy-market/products/internal/domain"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-type MockProductRepository struct {
-	data []*domain.Product
+// Repositorio real usando GORM
+type ProductRepository struct {
+	db *gorm.DB
 }
 
-func NewProductRepository(_ interface{}) *MockProductRepository {
-	return &MockProductRepository{data: []*domain.Product{}}
+func NewProductRepository(db *gorm.DB) *ProductRepository {
+	return &ProductRepository{db: db}
 }
 
-func (r *MockProductRepository) Save(ctx context.Context, p *domain.Product) error {
-	r.data = append(r.data, p)
-	return nil
+func (r *ProductRepository) Save(ctx context.Context, p *domain.Product) error {
+	return r.db.WithContext(ctx).Create(p).Error
 }
 
-func (r *MockProductRepository) FindAll(ctx context.Context) ([]*domain.Product, error) {
-	return r.data, nil
+func (r *ProductRepository) FindAll(ctx context.Context) ([]*domain.Product, error) {
+	var products []*domain.Product
+	if err := r.db.WithContext(ctx).Find(&products).Error; err != nil {
+		return nil, err
+	}
+	return products, nil
 }
 
-// Placeholder para evitar error en main.go al llamar a postgres.NewDB()
-func NewDB(_ string) (interface{}, error) {
-	return nil, nil
+// Conexión a PostgreSQL usando GORM
+func NewDB(dsn string) (*gorm.DB, error) {
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }
